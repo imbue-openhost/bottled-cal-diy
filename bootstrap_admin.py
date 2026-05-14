@@ -153,7 +153,6 @@ def create_admin() -> None:
         email,
         username,
         name,
-        "hashedPassword",
         role,
         "completedOnboarding",
         "timeZone",
@@ -166,7 +165,6 @@ def create_admin() -> None:
         '{ADMIN_EMAIL}',
         '{ADMIN_USERNAME}',
         '{ADMIN_NAME}',
-        '{password_hash}',
         'ADMIN',
         true,
         '{ADMIN_TIMEZONE}',
@@ -179,7 +177,15 @@ def create_admin() -> None:
     """
 
     result = run_sql(sql)
-    log(f"INSERT result: {result}")
+    log(f"INSERT users result: {result}")
+
+    pw_sql = f"""
+    INSERT INTO "UserPassword" (hash, "userId")
+    VALUES ('{password_hash}', {user_id})
+    ON CONFLICT ("userId") DO NOTHING;
+    """
+    pw_result = run_sql(pw_sql)
+    log(f"INSERT UserPassword result: {pw_result}")
 
     # Verify the user was created
     verify = run_sql(f"SELECT id FROM users WHERE email = '{ADMIN_EMAIL}'")
