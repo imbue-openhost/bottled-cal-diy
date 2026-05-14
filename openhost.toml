@@ -10,7 +10,12 @@ port = 8080
 
 [routing]
 health_check = "/healthz"
-public_paths = ["/"]
+public_paths = [
+    "/_next/",
+    "/api/",
+    "/auth/",
+    "/_openhost/",
+]
 
 [resources]
 memory_mb = 2048
