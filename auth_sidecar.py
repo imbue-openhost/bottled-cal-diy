@@ -57,7 +57,7 @@ def _nextauth_login():
             "password": ADMIN_PASSWORD,
             "redirect": "false",
             "json": "true",
-            "callbackUrl": "/",
+            "callbackUrl": f"https://{APP_HOST}/",
         })
 
         conn2 = http.client.HTTPConnection(CALCOM_HOST, CALCOM_PORT, timeout=10)
