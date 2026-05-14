@@ -293,7 +293,12 @@ class AuthProxyHandler(http.server.BaseHTTPRequestHandler):
             conn.close()
         except Exception as e:
             log(f"Proxy error: {e}")
-            self.send_error(502, f"Bad Gateway: {e}")
+            body = b"<html><head><meta http-equiv='refresh' content='5'></head><body><p>Cal.diy is starting, please wait...</p></body></html>"
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
 
     def _handle_request(self, method: str) -> None:
         """Main request handling logic."""
