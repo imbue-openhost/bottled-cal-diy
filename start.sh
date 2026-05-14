@@ -31,6 +31,14 @@ chown postgres:postgres "${PGRUN}" "${APP_TEMP}"
 
 echo "127.0.0.1 cal-diy.${ZONE_DOMAIN}" >> /etc/hosts
 
+SELF_CERT_DIR="${APP_DATA}/self-cert"
+if [ ! -f "${SELF_CERT_DIR}/cert.pem" ]; then
+    mkdir -p "${SELF_CERT_DIR}"
+    openssl req -x509 -newkey rsa:2048 -keyout "${SELF_CERT_DIR}/key.pem" \
+      -out "${SELF_CERT_DIR}/cert.pem" -days 3650 -nodes \
+      -subj "/CN=cal-diy.${ZONE_DOMAIN}" 2>/dev/null
+fi
+
 PG_BINDIR=$(find /usr/lib/postgresql -name initdb -type f 2>/dev/null | head -1 | xargs dirname 2>/dev/null || true)
 [ -z "$PG_BINDIR" ] && die "Cannot find PostgreSQL binaries"
 

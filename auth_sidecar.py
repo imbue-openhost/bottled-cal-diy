@@ -53,9 +53,9 @@ def create_session(user_id):
     session_token = str(uuid.uuid4())
     session_id = str(uuid.uuid4())[:25]
     expires = f"NOW() + INTERVAL '{SESSION_EXPIRY_DAYS} days'"
-    sql = f"""INSERT INTO "Session" (id, "sessionToken", "userId", expires) VALUES ('{session_id}', '{session_token}', {user_id}, {expires}) RETURNING "sessionToken";"""
-    result = run_sql(sql)
-    return result if result else session_token
+    sql = f"""INSERT INTO "Session" (id, "sessionToken", "userId", expires) VALUES ('{session_id}', '{session_token}', {user_id}, {expires});"""
+    run_sql(sql)
+    return session_token
 
 
 class SSOHandler(http.server.BaseHTTPRequestHandler):
