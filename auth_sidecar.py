@@ -17,7 +17,8 @@ import urllib.parse
 LISTEN_HOST = "127.0.0.1"
 LISTEN_PORT = 8090
 CALCOM_HOST = "127.0.0.1"
-CALCOM_PORT = 3000
+CALCOM_PORT = 443
+CALCOM_USE_SSL = True
 ZONE_DOMAIN = os.environ.get("OPENHOST_ZONE_DOMAIN", "localhost")
 APP_HOST = f"cal-diy.{ZONE_DOMAIN}"
 
@@ -46,11 +47,14 @@ def _nextauth_login():
         log("No admin credentials found yet")
         return []
     try:
-        conn = http.client.HTTPConnection(CALCOM_HOST, CALCOM_PORT, timeout=10)
+        import ssl
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
 
+        conn = http.client.HTTPSConnection(CALCOM_HOST, CALCOM_PORT, timeout=10, context=ctx)
         conn.request("GET", "/api/auth/csrf", headers={
             "Host": APP_HOST,
-            "X-Forwarded-Proto": "https",
         })
         resp = conn.getresponse()
         csrf_body = resp.read().decode()
@@ -73,12 +77,11 @@ def _nextauth_login():
             "callbackUrl": f"https://{APP_HOST}/",
         })
 
-        conn2 = http.client.HTTPConnection(CALCOM_HOST, CALCOM_PORT, timeout=10)
+        conn2 = http.client.HTTPSConnection(CALCOM_HOST, CALCOM_PORT, timeout=10, context=ctx)
         conn2.request("POST", "/api/auth/callback/credentials", body=form_data, headers={
             "Host": APP_HOST,
             "Content-Type": "application/x-www-form-urlencoded",
             "Cookie": cookie_header,
-            "X-Forwarded-Proto": "https",
         })
         resp2 = conn2.getresponse()
         resp2_body = resp2.read().decode()
