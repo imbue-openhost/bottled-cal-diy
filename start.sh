@@ -29,6 +29,11 @@ die() { log "FATAL: $*"; exit 1; }
 mkdir -p "${APP_DATA}" "${APP_TEMP}" "${PGRUN}"
 chown postgres:postgres "${PGRUN}"
 
+PG_BINDIR=$(find /usr/lib/postgresql -name initdb -type f 2>/dev/null | head -1 | xargs dirname 2>/dev/null || true)
+[ -z "$PG_BINDIR" ] && die "Cannot find PostgreSQL binaries"
+
+pgsu() { su postgres -s /bin/bash -c "export PATH='${PG_BINDIR}:\$PATH'; $*"; }
+
 # ---------------------------------------------------------------------------
 # 2. PostgreSQL setup
 # ---------------------------------------------------------------------------
@@ -36,7 +41,7 @@ if [ ! -f "${PGDATA}/PG_VERSION" ]; then
     log "Initialising PostgreSQL data directory..."
     mkdir -p "${PGDATA}"
     chown -R postgres:postgres "${PGDATA}"
-    su - postgres -s /bin/bash -c "initdb -D '${PGDATA}' --auth=trust --no-locale --encoding=UTF8" \
+    pgsu "initdb -D '${PGDATA}' --auth=trust --no-locale --encoding=UTF8" \
         || die "initdb failed"
 
     # Listen only on localhost
@@ -59,30 +64,30 @@ else
 fi
 
 log "Starting PostgreSQL..."
-su - postgres -s /bin/bash -c "pg_ctl -D '${PGDATA}' -l '${APP_TEMP}/postgresql.log' -o '-k ${PGRUN}' start" \
+pgsu "pg_ctl -D '${PGDATA}' -l '${APP_TEMP}/postgresql.log' -o '-k ${PGRUN}' start" \
     || die "pg_ctl start failed"
 
 # Wait for pg to be ready
 for i in $(seq 1 30); do
-    if su - postgres -s /bin/bash -c "pg_isready -h 127.0.0.1 -p 5432" >/dev/null 2>&1; then
+    if pgsu "pg_isready -h 127.0.0.1 -p 5432" >/dev/null 2>&1; then
         break
     fi
     sleep 1
 done
-su - postgres -s /bin/bash -c "pg_isready -h 127.0.0.1 -p 5432" || die "PostgreSQL did not become ready"
+pgsu "pg_isready -h 127.0.0.1 -p 5432" || die "PostgreSQL did not become ready"
 log "PostgreSQL is ready."
 
 # Create role and database if needed
-su - postgres -s /bin/bash -c "psql -h 127.0.0.1 -p 5432 -tc \"SELECT 1 FROM pg_roles WHERE rolname='${DB_USER}'\"" \
+pgsu "psql -h 127.0.0.1 -p 5432 -tc \"SELECT 1 FROM pg_roles WHERE rolname='${DB_USER}'\"" \
     | grep -q 1 || {
     log "Creating database role '${DB_USER}'..."
-    su - postgres -s /bin/bash -c "psql -h 127.0.0.1 -p 5432 -c \"CREATE ROLE ${DB_USER} WITH LOGIN PASSWORD '${DB_PASS}' SUPERUSER;\""
+    pgsu "psql -h 127.0.0.1 -p 5432 -c \"CREATE ROLE ${DB_USER} WITH LOGIN PASSWORD '${DB_PASS}' SUPERUSER;\""
 }
 
-su - postgres -s /bin/bash -c "psql -h 127.0.0.1 -p 5432 -tc \"SELECT 1 FROM pg_database WHERE datname='${DB_NAME}'\"" \
+pgsu "psql -h 127.0.0.1 -p 5432 -tc \"SELECT 1 FROM pg_database WHERE datname='${DB_NAME}'\"" \
     | grep -q 1 || {
     log "Creating database '${DB_NAME}'..."
-    su - postgres -s /bin/bash -c "psql -h 127.0.0.1 -p 5432 -c \"CREATE DATABASE ${DB_NAME} OWNER ${DB_USER};\""
+    pgsu "psql -h 127.0.0.1 -p 5432 -c \"CREATE DATABASE ${DB_NAME} OWNER ${DB_USER};\""
 }
 
 # ---------------------------------------------------------------------------
@@ -233,9 +238,9 @@ while true; do
     fi
 
     # Check PostgreSQL
-    if ! su - postgres -s /bin/bash -c "pg_isready -h 127.0.0.1 -p 5432" >/dev/null 2>&1; then
+    if ! pgsu "pg_isready -h 127.0.0.1 -p 5432" >/dev/null 2>&1; then
         log "PostgreSQL appears down. Attempting restart..."
-        su - postgres -s /bin/bash -c "pg_ctl -D '${PGDATA}' -l '${APP_TEMP}/postgresql.log' -o '-k ${PGRUN}' start" || true
+        pgsu "pg_ctl -D '${PGDATA}' -l '${APP_TEMP}/postgresql.log' -o '-k ${PGRUN}' start" || true
     fi
 
     # Check Redis
