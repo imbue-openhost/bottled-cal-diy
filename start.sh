@@ -34,6 +34,10 @@ PG_BINDIR=$(find /usr/lib/postgresql -name initdb -type f 2>/dev/null | head -1 
 
 pgsu() { su postgres -s /bin/bash -c "export PATH='${PG_BINDIR}:\$PATH'; $*"; }
 
+log "Starting auth proxy on 0.0.0.0:8080 (early, for healthcheck)..."
+python3 /opt/openhost/auth_proxy.py &
+PROXY_PID=$!
+
 # ---------------------------------------------------------------------------
 # 2. PostgreSQL setup
 # ---------------------------------------------------------------------------
@@ -152,15 +156,7 @@ log "NEXT_PUBLIC_WEBAPP_URL=${NEXT_PUBLIC_WEBAPP_URL}"
 log "DATABASE_URL=postgresql://${DB_USER}:***@127.0.0.1:5432/${DB_NAME}"
 
 # ---------------------------------------------------------------------------
-# 6. Start auth proxy early (so healthcheck passes during cal.com startup)
-# ---------------------------------------------------------------------------
-log "Starting auth proxy on 0.0.0.0:8080..."
-python3 /opt/openhost/auth_proxy.py &
-PROXY_PID=$!
-log "Auth proxy PID: ${PROXY_PID}"
-
-# ---------------------------------------------------------------------------
-# 7. Start cal.com via upstream start script
+# 6. Start cal.com via upstream start script
 # ---------------------------------------------------------------------------
 CALCOM_START="/calcom/scripts/start.sh"
 if [ ! -x "${CALCOM_START}" ]; then
