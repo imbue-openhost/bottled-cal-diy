@@ -131,6 +131,7 @@ fi
 # 5. Environment variables for cal.com
 # ---------------------------------------------------------------------------
 export DATABASE_URL="postgresql://${DB_USER}:${DB_PASS}@127.0.0.1:5432/${DB_NAME}"
+export DATABASE_DIRECT_URL="${DATABASE_URL}"
 export NEXT_PUBLIC_WEBAPP_URL="https://cal-diy.${ZONE_DOMAIN}"
 export NEXTAUTH_URL="https://cal-diy.${ZONE_DOMAIN}"
 export NEXTAUTH_SECRET="${NEXTAUTH_SECRET}"
