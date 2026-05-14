@@ -27,7 +27,7 @@ die() { log "FATAL: $*"; exit 1; }
 # 1. Ensure directories
 # ---------------------------------------------------------------------------
 mkdir -p "${APP_DATA}" "${APP_TEMP}" "${PGRUN}"
-chown postgres:postgres "${PGRUN}"
+chown postgres:postgres "${PGRUN}" "${APP_TEMP}"
 
 PG_BINDIR=$(find /usr/lib/postgresql -name initdb -type f 2>/dev/null | head -1 | xargs dirname 2>/dev/null || true)
 [ -z "$PG_BINDIR" ] && die "Cannot find PostgreSQL binaries"
