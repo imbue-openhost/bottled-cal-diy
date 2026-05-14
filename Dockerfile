@@ -21,6 +21,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY start.sh        /opt/openhost/start.sh
 COPY auth_proxy.py   /opt/openhost/auth_proxy.py
+COPY auth_sidecar.py /opt/openhost/auth_sidecar.py
 COPY bootstrap_admin.py /opt/openhost/bootstrap_admin.py
 COPY nginx.conf      /opt/openhost/nginx.conf
 

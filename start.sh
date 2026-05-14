@@ -36,6 +36,10 @@ PG_BINDIR=$(find /usr/lib/postgresql -name initdb -type f 2>/dev/null | head -1 
 
 pgsu() { su postgres -s /bin/bash -c "export PATH='${PG_BINDIR}:\$PATH'; $*"; }
 
+log "Starting SSO sidecar on 127.0.0.1:8090..."
+DB_USER="${DB_USER}" DB_NAME="${DB_NAME}" PG_BINDIR="${PG_BINDIR}" python3 /opt/openhost/auth_sidecar.py &
+SSO_PID=$!
+
 log "Starting nginx proxy on 0.0.0.0:8080..."
 nginx -c /opt/openhost/nginx.conf &
 PROXY_PID=$!
