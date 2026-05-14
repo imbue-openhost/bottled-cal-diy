@@ -253,7 +253,7 @@ class AuthProxyHandler(http.server.BaseHTTPRequestHandler):
     def _proxy_request(self, method: str, body: bytes = None) -> None:
         """Forward the request to the upstream cal.com server."""
         try:
-            conn = http.client.HTTPConnection(UPSTREAM_HOST, UPSTREAM_PORT, timeout=120)
+            conn = http.client.HTTPConnection(UPSTREAM_HOST, UPSTREAM_PORT, timeout=10)
 
             # Build headers, stripping OpenHost internal ones
             headers = {}
