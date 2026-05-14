@@ -187,9 +187,10 @@ else
     (
         cd /calcom
         if [ -f /calcom/scripts/replace-placeholder.sh ]; then
-            bash /calcom/scripts/replace-placeholder.sh
+            bash /calcom/scripts/replace-placeholder.sh 2>/dev/null || true
         fi
-        exec npx turbo run start --filter=@calcom/web
+        cd /calcom/apps/web
+        exec node server.js
     ) &
     CALCOM_PID=$!
 fi
