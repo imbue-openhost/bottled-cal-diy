@@ -183,14 +183,13 @@ if [ ! -f "${FIRST_BOOT_MARKER}" ]; then
         sleep 2
     done
 else
-    log "Subsequent boot: starting Next.js directly (skipping migrations)..."
+    log "Subsequent boot: starting cal.com (skipping migrations)..."
     (
         cd /calcom
         if [ -f /calcom/scripts/replace-placeholder.sh ]; then
             bash /calcom/scripts/replace-placeholder.sh 2>/dev/null || true
         fi
-        cd /calcom/apps/web
-        exec node server.js
+        exec yarn start
     ) &
     CALCOM_PID=$!
 fi
