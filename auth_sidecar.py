@@ -88,10 +88,12 @@ def _nextauth_login():
         for name, value in resp2.getheaders():
             if name.lower() == "set-cookie":
                 if "session-token" in value:
-                    secure_value = value.replace(
-                        "next-auth.session-token=",
-                        "__Secure-next-auth.session-token="
-                    )
+                    secure_value = value
+                    if not value.startswith("__Secure-"):
+                        secure_value = value.replace(
+                            "next-auth.session-token=",
+                            "__Secure-next-auth.session-token="
+                        )
                     if "; Secure" not in secure_value:
                         secure_value = secure_value.replace("; Path=", "; Secure; Path=")
                     session_cookies.append(secure_value)
