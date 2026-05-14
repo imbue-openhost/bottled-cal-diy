@@ -1,61 +1,83 @@
 #!/usr/bin/env python3
-"""OpenHost SSO sidecar for cal.diy (Pattern B2 — direct DB session injection).
+"""OpenHost SSO sidecar for cal.diy (Pattern B1 — NextAuth credentials login).
 
-Runs on 127.0.0.1:8090. nginx calls this via auth_request for owner
-HTML navigations. When the owner has no cal.com session cookie, this
-sidecar INSERTs a session row directly into the NextAuth Session table
-and returns Set-Cookie headers.
+Runs on 127.0.0.1:8090. When the owner visits without a session, this
+sidecar logs in via NextAuth's credentials callback to mint a real
+session, then redirects the browser with the session cookie.
 """
 
+import http.client
 import http.server
 import json
 import os
-import secrets
-import subprocess
+import re
 import sys
-import time
-import uuid
+import urllib.parse
 
 LISTEN_HOST = "127.0.0.1"
 LISTEN_PORT = 8090
+CALCOM_HOST = "127.0.0.1"
+CALCOM_PORT = 3000
 ZONE_DOMAIN = os.environ.get("OPENHOST_ZONE_DOMAIN", "localhost")
-DB_HOST = "127.0.0.1"
-DB_PORT = "5432"
-DB_USER = os.environ.get("DB_USER", "calcom")
-DB_NAME = os.environ.get("DB_NAME", "calendso")
+APP_HOST = f"cal-diy.{ZONE_DOMAIN}"
 
-SESSION_COOKIE = "__Secure-next-auth.session-token"
-SESSION_EXPIRY_DAYS = 30
+ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", f"admin@{ZONE_DOMAIN}")
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "")
+
+SESSION_COOKIE_NAME = "__Secure-next-auth.session-token"
+
 
 def log(msg):
     print(f"[openhost:sso] {msg}", file=sys.stderr, flush=True)
 
 
-def run_sql(sql):
+def _nextauth_login():
     try:
-        pg_bin = os.environ.get("PG_BINDIR", "/usr/lib/postgresql/15/bin")
-        result = subprocess.run(
-            [f"{pg_bin}/psql", "-h", DB_HOST, "-p", DB_PORT, "-U", DB_USER, "-d", DB_NAME, "-tAX", "-c", sql],
-            capture_output=True, text=True, timeout=5,
-        )
-        return result.stdout.strip()
+        conn = http.client.HTTPConnection(CALCOM_HOST, CALCOM_PORT, timeout=10)
+
+        conn.request("GET", "/api/auth/csrf", headers={"Host": APP_HOST})
+        resp = conn.getresponse()
+        csrf_body = resp.read().decode()
+        csrf_cookies = []
+        for name, value in resp.getheaders():
+            if name.lower() == "set-cookie":
+                csrf_cookies.append(value.split(";")[0])
+        csrf_data = json.loads(csrf_body)
+        csrf_token = csrf_data.get("csrfToken", "")
+        cookie_header = "; ".join(csrf_cookies)
+
+        form_data = urllib.parse.urlencode({
+            "csrfToken": csrf_token,
+            "email": ADMIN_EMAIL,
+            "password": ADMIN_PASSWORD,
+            "redirect": "false",
+            "json": "true",
+            "callbackUrl": "/",
+        })
+
+        conn2 = http.client.HTTPConnection(CALCOM_HOST, CALCOM_PORT, timeout=10)
+        conn2.request("POST", "/api/auth/callback/credentials", body=form_data, headers={
+            "Host": APP_HOST,
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Cookie": cookie_header,
+            "X-Forwarded-Proto": "https",
+        })
+        resp2 = conn2.getresponse()
+        resp2.read()
+
+        session_cookies = []
+        for name, value in resp2.getheaders():
+            if name.lower() == "set-cookie":
+                if "session-token" in value:
+                    session_cookies.append(value)
+
+        conn.close()
+        conn2.close()
+        return session_cookies
+
     except Exception as e:
-        log(f"SQL error: {e}")
-        return ""
-
-
-def get_admin_user_id():
-    result = run_sql("SELECT id FROM users WHERE role = 'ADMIN' LIMIT 1")
-    return int(result) if result and result.isdigit() else None
-
-
-def create_session(user_id):
-    session_token = str(uuid.uuid4())
-    session_id = str(uuid.uuid4())[:25]
-    expires = f"NOW() + INTERVAL '{SESSION_EXPIRY_DAYS} days'"
-    sql = f"""INSERT INTO "Session" (id, "sessionToken", "userId", expires) VALUES ('{session_id}', '{session_token}', {user_id}, {expires});"""
-    run_sql(sql)
-    return session_token
+        log(f"Login failed: {e}")
+        return []
 
 
 class SSOHandler(http.server.BaseHTTPRequestHandler):
@@ -66,7 +88,7 @@ class SSOHandler(http.server.BaseHTTPRequestHandler):
         if self.path.startswith("/_openhost/auth_check"):
             is_owner = self.headers.get("X-OpenHost-Is-Owner", "").lower() == "true"
             cookies = self.headers.get("Cookie", "")
-            has_session = SESSION_COOKIE in cookies
+            has_session = "session-token" in cookies
 
             if is_owner and not has_session:
                 self.send_response(401)
@@ -76,23 +98,21 @@ class SSOHandler(http.server.BaseHTTPRequestHandler):
                 self.end_headers()
 
         elif self.path.startswith("/_openhost/login"):
-            user_id = get_admin_user_id()
-            if user_id is None:
-                self.send_response(503)
-                self.send_header("Content-Type", "text/plain")
+            session_cookies = _nextauth_login()
+
+            if not session_cookies:
+                self.send_response(302)
+                self.send_header("Location", f"https://{APP_HOST}/auth/login")
                 self.end_headers()
-                self.wfile.write(b"Admin user not yet created")
+                log("SSO login failed, redirecting to native login")
                 return
 
-            session_token = create_session(user_id)
-            redirect_to = "/"
-
             self.send_response(302)
-            cookie_val = f"{SESSION_COOKIE}={session_token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age={SESSION_EXPIRY_DAYS * 86400}"
-            self.send_header("Set-Cookie", cookie_val)
-            self.send_header("Location", redirect_to)
+            for cookie in session_cookies:
+                self.send_header("Set-Cookie", cookie)
+            self.send_header("Location", "/")
             self.end_headers()
-            log(f"SSO login: created session for user {user_id}")
+            log("SSO login successful")
 
         else:
             self.send_response(404)

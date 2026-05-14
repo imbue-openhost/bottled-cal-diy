@@ -45,7 +45,13 @@ PG_BINDIR=$(find /usr/lib/postgresql -name initdb -type f 2>/dev/null | head -1 
 pgsu() { su postgres -s /bin/bash -c "export PATH='${PG_BINDIR}:\$PATH'; $*"; }
 
 log "Starting SSO sidecar on 127.0.0.1:8090..."
-DB_USER="${DB_USER}" DB_NAME="${DB_NAME}" PG_BINDIR="${PG_BINDIR}" python3 /opt/openhost/auth_sidecar.py &
+CRED_FILE="${APP_DATA}/.admin_credentials"
+ADMIN_EMAIL="" ADMIN_PASSWORD=""
+if [ -f "$CRED_FILE" ]; then
+    ADMIN_EMAIL=$(sed -n '1p' "$CRED_FILE")
+    ADMIN_PASSWORD=$(sed -n '2p' "$CRED_FILE")
+fi
+ADMIN_EMAIL="${ADMIN_EMAIL}" ADMIN_PASSWORD="${ADMIN_PASSWORD}" python3 /opt/openhost/auth_sidecar.py &
 SSO_PID=$!
 
 log "Starting nginx proxy on 0.0.0.0:8080..."

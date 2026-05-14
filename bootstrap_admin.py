@@ -135,9 +135,14 @@ def create_admin() -> None:
             f.write(existing)
         return
 
-    # Generate a random password -- never stored on disk (Pattern B2)
     random_password = secrets.token_urlsafe(32)
     password_hash = bcrypt_hash(random_password)
+
+    cred_path = os.path.join(APP_DATA, ".admin_credentials")
+    with open(cred_path, "w") as f:
+        f.write(f"{ADMIN_EMAIL}\n{random_password}\n")
+    os.chmod(cred_path, 0o600)
+    log(f"Admin credentials saved to {cred_path}")
 
     # Generate a user id (positive int, within safe range)
     user_id = secrets.randbelow(2_000_000_000) + 1
