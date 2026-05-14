@@ -29,6 +29,8 @@ die() { log "FATAL: $*"; exit 1; }
 mkdir -p "${APP_DATA}" "${APP_TEMP}" "${PGRUN}"
 chown postgres:postgres "${PGRUN}" "${APP_TEMP}"
 
+echo "127.0.0.1 cal-diy.${ZONE_DOMAIN}" >> /etc/hosts
+
 PG_BINDIR=$(find /usr/lib/postgresql -name initdb -type f 2>/dev/null | head -1 | xargs dirname 2>/dev/null || true)
 [ -z "$PG_BINDIR" ] && die "Cannot find PostgreSQL binaries"
 
