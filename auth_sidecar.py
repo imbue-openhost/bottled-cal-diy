@@ -35,9 +35,13 @@ def _nextauth_login():
     try:
         conn = http.client.HTTPConnection(CALCOM_HOST, CALCOM_PORT, timeout=10)
 
-        conn.request("GET", "/api/auth/csrf", headers={"Host": APP_HOST})
+        conn.request("GET", "/api/auth/csrf", headers={
+            "Host": APP_HOST,
+            "X-Forwarded-Proto": "https",
+        })
         resp = conn.getresponse()
         csrf_body = resp.read().decode()
+        log(f"CSRF response: {resp.status} body={csrf_body[:100]}")
         csrf_cookies = []
         for name, value in resp.getheaders():
             if name.lower() == "set-cookie":
@@ -45,6 +49,7 @@ def _nextauth_login():
         csrf_data = json.loads(csrf_body)
         csrf_token = csrf_data.get("csrfToken", "")
         cookie_header = "; ".join(csrf_cookies)
+        log(f"CSRF token: {csrf_token[:20]}... cookies: {len(csrf_cookies)}")
 
         form_data = urllib.parse.urlencode({
             "csrfToken": csrf_token,
@@ -63,20 +68,25 @@ def _nextauth_login():
             "X-Forwarded-Proto": "https",
         })
         resp2 = conn2.getresponse()
-        resp2.read()
+        resp2_body = resp2.read().decode()
+        log(f"Callback response: {resp2.status} body={resp2_body[:200]}")
 
         session_cookies = []
         for name, value in resp2.getheaders():
             if name.lower() == "set-cookie":
+                log(f"  Set-Cookie: {value[:80]}")
                 if "session-token" in value:
                     session_cookies.append(value)
+        log(f"Session cookies found: {len(session_cookies)}")
 
         conn.close()
         conn2.close()
         return session_cookies
 
     except Exception as e:
+        import traceback
         log(f"Login failed: {e}")
+        traceback.print_exc(file=sys.stderr)
         return []
 
 
