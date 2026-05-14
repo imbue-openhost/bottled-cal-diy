@@ -158,30 +158,38 @@ log "DATABASE_URL=postgresql://${DB_USER}:***@127.0.0.1:5432/${DB_NAME}"
 # ---------------------------------------------------------------------------
 # 6. Start cal.com via upstream start script
 # ---------------------------------------------------------------------------
-CALCOM_START="/calcom/scripts/start.sh"
-if [ ! -x "${CALCOM_START}" ]; then
-    # Fallback: some image versions don't have the start script
-    # In that case run prisma migrate + next start directly
-    CALCOM_START=""
-fi
+FIRST_BOOT_MARKER="${APP_DATA}/.first_boot_done"
 
 CALCOM_PID=""
-if [ -n "${CALCOM_START}" ]; then
-    log "Starting cal.com via upstream start script..."
+if [ ! -f "${FIRST_BOOT_MARKER}" ]; then
+    log "First boot: running upstream start script (migrations + seed)..."
     (
         cd /calcom
-        exec bash "${CALCOM_START}"
+        bash /calcom/scripts/start.sh
     ) &
     CALCOM_PID=$!
+
+    log "Waiting for cal.com first boot to complete..."
+    for i in $(seq 1 300); do
+        if curl -sf -o /dev/null "http://127.0.0.1:3000/" 2>/dev/null; then
+            touch "${FIRST_BOOT_MARKER}"
+            log "First boot complete."
+            break
+        fi
+        if ! kill -0 "${CALCOM_PID}" 2>/dev/null; then
+            log "WARNING: cal.com exited during first boot."
+            break
+        fi
+        sleep 2
+    done
 else
-    log "Starting cal.com directly (no upstream start script found)..."
+    log "Subsequent boot: starting Next.js directly (skipping migrations)..."
     (
         cd /calcom
-        # Run Prisma migrations
-        npx prisma migrate deploy --schema /calcom/packages/prisma/schema.prisma 2>&1 || true
-        npx prisma db seed --schema /calcom/packages/prisma/schema.prisma 2>&1 || true
-        # Start the Next.js app
-        exec node /calcom/apps/web/server.js
+        if [ -f /calcom/scripts/replace-placeholder.sh ]; then
+            bash /calcom/scripts/replace-placeholder.sh
+        fi
+        exec npx turbo run start --filter=@calcom/web
     ) &
     CALCOM_PID=$!
 fi
@@ -191,11 +199,10 @@ log "Cal.com PID: ${CALCOM_PID}"
 # 7. Wait for cal.com to be responsive, then bootstrap admin
 # ---------------------------------------------------------------------------
 log "Waiting for cal.com to become responsive on :3000..."
-for i in $(seq 1 120); do
+for i in $(seq 1 180); do
     if curl -sf -o /dev/null "http://127.0.0.1:3000/" 2>/dev/null; then
         break
     fi
-    # Check that cal.com process is still alive
     if ! kill -0 "${CALCOM_PID}" 2>/dev/null; then
         log "WARNING: cal.com process exited early, continuing anyway..."
         break
