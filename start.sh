@@ -36,8 +36,8 @@ PG_BINDIR=$(find /usr/lib/postgresql -name initdb -type f 2>/dev/null | head -1 
 
 pgsu() { su postgres -s /bin/bash -c "export PATH='${PG_BINDIR}:\$PATH'; $*"; }
 
-log "Starting auth proxy on 0.0.0.0:8080 (early, for healthcheck)..."
-python3 /opt/openhost/auth_proxy.py &
+log "Starting nginx proxy on 0.0.0.0:8080..."
+nginx -c /opt/openhost/nginx.conf &
 PROXY_PID=$!
 
 # ---------------------------------------------------------------------------

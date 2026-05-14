@@ -9,6 +9,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         postgresql \
         postgresql-client \
         redis-server \
+        nginx \
         tini \
         ca-certificates \
         procps \
@@ -21,6 +22,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY start.sh        /opt/openhost/start.sh
 COPY auth_proxy.py   /opt/openhost/auth_proxy.py
 COPY bootstrap_admin.py /opt/openhost/bootstrap_admin.py
+COPY nginx.conf      /opt/openhost/nginx.conf
 
 RUN chmod 0755 /opt/openhost/start.sh \
                /opt/openhost/auth_proxy.py \
