@@ -21,8 +21,17 @@ CALCOM_PORT = 3000
 ZONE_DOMAIN = os.environ.get("OPENHOST_ZONE_DOMAIN", "localhost")
 APP_HOST = f"cal-diy.{ZONE_DOMAIN}"
 
-ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", f"admin@{ZONE_DOMAIN}")
-ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "")
+APP_DATA = os.environ.get("OPENHOST_APP_DATA_DIR", "/data/app_data/cal-diy")
+CRED_FILE = os.path.join(APP_DATA, ".admin_credentials")
+
+
+def _read_credentials():
+    try:
+        with open(CRED_FILE) as f:
+            lines = f.read().strip().split("\n")
+            return lines[0], lines[1]
+    except (FileNotFoundError, IndexError):
+        return f"admin@{ZONE_DOMAIN}", ""
 
 SESSION_COOKIE_NAME = "__Secure-next-auth.session-token"
 
@@ -32,6 +41,10 @@ def log(msg):
 
 
 def _nextauth_login():
+    email, password = _read_credentials()
+    if not password:
+        log("No admin credentials found yet")
+        return []
     try:
         conn = http.client.HTTPConnection(CALCOM_HOST, CALCOM_PORT, timeout=10)
 
@@ -53,8 +66,8 @@ def _nextauth_login():
 
         form_data = urllib.parse.urlencode({
             "csrfToken": csrf_token,
-            "email": ADMIN_EMAIL,
-            "password": ADMIN_PASSWORD,
+            "email": email,
+            "password": password,
             "redirect": "false",
             "json": "true",
             "callbackUrl": f"https://{APP_HOST}/",
