@@ -152,7 +152,15 @@ log "NEXT_PUBLIC_WEBAPP_URL=${NEXT_PUBLIC_WEBAPP_URL}"
 log "DATABASE_URL=postgresql://${DB_USER}:***@127.0.0.1:5432/${DB_NAME}"
 
 # ---------------------------------------------------------------------------
-# 6. Start cal.com via upstream start script
+# 6. Start auth proxy early (so healthcheck passes during cal.com startup)
+# ---------------------------------------------------------------------------
+log "Starting auth proxy on 0.0.0.0:8080..."
+python3 /opt/openhost/auth_proxy.py &
+PROXY_PID=$!
+log "Auth proxy PID: ${PROXY_PID}"
+
+# ---------------------------------------------------------------------------
+# 7. Start cal.com via upstream start script
 # ---------------------------------------------------------------------------
 CALCOM_START="/calcom/scripts/start.sh"
 if [ ! -x "${CALCOM_START}" ]; then
@@ -202,14 +210,6 @@ log "Cal.com responded (or timeout reached). Running bootstrap..."
 
 python3 /opt/openhost/bootstrap_admin.py
 log "Bootstrap complete."
-
-# ---------------------------------------------------------------------------
-# 8. Start auth proxy
-# ---------------------------------------------------------------------------
-log "Starting auth proxy on 0.0.0.0:8080..."
-python3 /opt/openhost/auth_proxy.py &
-PROXY_PID=$!
-log "Auth proxy PID: ${PROXY_PID}"
 
 # ---------------------------------------------------------------------------
 # 9. Supervise all processes

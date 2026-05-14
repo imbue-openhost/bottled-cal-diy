@@ -153,7 +153,7 @@ def create_admin() -> None:
         email,
         username,
         name,
-        password,
+        "hashedPassword",
         role,
         "completedOnboarding",
         "timeZone",
