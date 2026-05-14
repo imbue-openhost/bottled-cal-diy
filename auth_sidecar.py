@@ -74,9 +74,14 @@ def _nextauth_login():
         session_cookies = []
         for name, value in resp2.getheaders():
             if name.lower() == "set-cookie":
-                log(f"  Set-Cookie: {value[:80]}")
                 if "session-token" in value:
-                    session_cookies.append(value)
+                    secure_value = value.replace(
+                        "next-auth.session-token=",
+                        "__Secure-next-auth.session-token="
+                    )
+                    if "; Secure" not in secure_value:
+                        secure_value = secure_value.replace("; Path=", "; Secure; Path=")
+                    session_cookies.append(secure_value)
         log(f"Session cookies found: {len(session_cookies)}")
 
         conn.close()
