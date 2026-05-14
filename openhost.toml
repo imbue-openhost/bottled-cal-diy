@@ -1,0 +1,21 @@
+[app]
+name = "cal-diy"
+version = "0.1.0"
+description = "Cal.com self-hosted scheduling (Pattern B2 SSO)"
+authors = ["Andrew Laack <andrew@laack.co>"]
+
+[runtime.container]
+image = "Dockerfile"
+port = 8080
+
+[routing]
+health_check = "/healthz"
+public_paths = ["/"]
+
+[resources]
+memory_mb = 2048
+cpu_millicores = 1000
+
+[data]
+app_data = true
+app_temp_data = true
