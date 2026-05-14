@@ -158,7 +158,7 @@ def create_admin() -> None:
         "timeZone",
         "emailVerified",
         "identityProvider",
-        "createdDate",
+        created,
         metadata
     ) VALUES (
         {user_id},
