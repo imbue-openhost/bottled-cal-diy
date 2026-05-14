@@ -253,7 +253,9 @@ class AuthProxyHandler(http.server.BaseHTTPRequestHandler):
     def _proxy_request(self, method: str, body: bytes = None) -> None:
         """Forward the request to the upstream cal.com server."""
         try:
-            conn = http.client.HTTPConnection(UPSTREAM_HOST, UPSTREAM_PORT, timeout=25)
+            conn = http.client.HTTPConnection(UPSTREAM_HOST, UPSTREAM_PORT, timeout=8)
+            conn.connect()
+            conn.sock.settimeout(8)
 
             # Build headers, stripping OpenHost internal ones
             headers = {}
@@ -324,6 +326,26 @@ class AuthProxyHandler(http.server.BaseHTTPRequestHandler):
             and self._is_dashboard_path()
         ):
             if self._maybe_auto_login():
+                return
+
+        # For HTML page navigations, check if upstream is responsive first.
+        # Cal.com SSR can hang for 30+ seconds on cold pages due to
+        # self-referencing tRPC calls through the external URL.
+        # Serve a client-side redirect shell instead of blocking.
+        if method == "GET" and self._is_html_navigation() and path_no_qs in ("/", ""):
+            try:
+                probe = http.client.HTTPConnection(UPSTREAM_HOST, UPSTREAM_PORT, timeout=3)
+                probe.request("HEAD", "/api/auth/providers")
+                probe_resp = probe.getresponse()
+                probe_resp.read()
+                probe.close()
+            except Exception:
+                body = b"<html><head><meta http-equiv='refresh' content='3'></head><body><p>Loading...</p></body></html>"
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
                 return
 
         # Read body for POST/PUT/PATCH
