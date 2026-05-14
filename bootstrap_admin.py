@@ -150,6 +150,7 @@ def create_admin() -> None:
     sql = f"""
     INSERT INTO users (
         id,
+        uuid,
         email,
         username,
         name,
@@ -162,6 +163,7 @@ def create_admin() -> None:
         metadata
     ) VALUES (
         {user_id},
+        gen_random_uuid(),
         '{ADMIN_EMAIL}',
         '{ADMIN_USERNAME}',
         '{ADMIN_NAME}',
