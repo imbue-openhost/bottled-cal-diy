@@ -253,7 +253,7 @@ class AuthProxyHandler(http.server.BaseHTTPRequestHandler):
     def _proxy_request(self, method: str, body: bytes = None) -> None:
         """Forward the request to the upstream cal.com server."""
         try:
-            conn = http.client.HTTPConnection(UPSTREAM_HOST, UPSTREAM_PORT, timeout=10)
+            conn = http.client.HTTPConnection(UPSTREAM_HOST, UPSTREAM_PORT, timeout=25)
 
             # Build headers, stripping OpenHost internal ones
             headers = {}
@@ -293,12 +293,15 @@ class AuthProxyHandler(http.server.BaseHTTPRequestHandler):
             conn.close()
         except Exception as e:
             log(f"Proxy error: {e}")
-            body = b"<html><head><meta http-equiv='refresh' content='5'></head><body><p>Cal.diy is starting, please wait...</p></body></html>"
-            self.send_response(200)
-            self.send_header("Content-Type", "text/html")
-            self.send_header("Content-Length", str(len(body)))
-            self.end_headers()
-            self.wfile.write(body)
+            try:
+                body = b"<html><head><meta http-equiv='refresh' content='5'></head><body><p>Cal.diy is starting, please wait...</p></body></html>"
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+            except Exception:
+                pass
 
     def _handle_request(self, method: str) -> None:
         """Main request handling logic."""

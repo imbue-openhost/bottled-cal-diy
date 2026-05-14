@@ -199,8 +199,12 @@ log "Cal.com PID: ${CALCOM_PID}"
 # 7. Wait for cal.com to be responsive, then bootstrap admin
 # ---------------------------------------------------------------------------
 log "Waiting for cal.com to become responsive on :3000..."
-for i in $(seq 1 180); do
-    if curl -sf -o /dev/null "http://127.0.0.1:3000/" 2>/dev/null; then
+for i in $(seq 1 60); do
+    if curl -sf --max-time 2 -o /dev/null "http://127.0.0.1:3000/api/auth/providers" 2>/dev/null; then
+        log "Cal.com API responding. Warming up SSR cache..."
+        curl -s --max-time 60 -o /dev/null "http://127.0.0.1:3000/" 2>/dev/null &
+        curl -s --max-time 60 -o /dev/null "http://127.0.0.1:3000/auth/login" 2>/dev/null &
+        sleep 5
         break
     fi
     if ! kill -0 "${CALCOM_PID}" 2>/dev/null; then
@@ -209,7 +213,7 @@ for i in $(seq 1 180); do
     fi
     sleep 2
 done
-log "Cal.com responded (or timeout reached). Running bootstrap..."
+log "Cal.com responded. Running bootstrap..."
 
 python3 /opt/openhost/bootstrap_admin.py
 log "Bootstrap complete."
