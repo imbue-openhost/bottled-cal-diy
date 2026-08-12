@@ -1,6 +1,6 @@
-# Cal.diy (Cal.com for OpenHost)
+# Cal.diy (Cal.com for Cloud in a Bottle)
 
-Self-hosted Cal.com scheduling packaged for OpenHost with automatic SSO.
+Self-hosted Cal.com scheduling packaged for Cloud in a Bottle with automatic SSO.
 
 ## Architecture
 
@@ -28,7 +28,7 @@ Booking pages (e.g. /admin/30min) are public by default. The auth proxy only
 triggers auto-login on dashboard prefixes (/settings, /event-types,
 /availability, /apps, /workflows, /getting-started, /bookings, /teams).
 
-The openhost.toml sets `public_paths = ["/"]` so the OpenHost router allows
+The openhost.toml sets `public_paths = ["/"]` so the Cloud in a Bottle router allows
 anonymous access to all paths. The auth proxy selectively auto-logins the
 owner only on dashboard paths.
 
